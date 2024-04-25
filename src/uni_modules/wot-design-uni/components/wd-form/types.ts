@@ -16,7 +16,7 @@ export type FormProvide = {
     rules?: FormRules
     border?: boolean
   }
-  errorMessages?: Record<string, string>
+  errorMessages?: string[]
 }
 
 export const FORM_KEY: InjectionKey<FormProvide> = Symbol('wd-form')

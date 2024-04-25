@@ -24,7 +24,8 @@ import { type FormRules, FORM_KEY, type ErrorMessage, formProps, type FormExpose
 const props = defineProps(formProps)
 
 const { children, linkChildren } = useChildren(FORM_KEY)
-let errorMessages = reactive<Record<string, string>>({})
+// let errorMessages = reactive<Record<string, string>>({})
+const errorMessages = reactive<string[]>([])
 
 linkChildren({ props, errorMessages: errorMessages })
 
@@ -32,7 +33,7 @@ watch(
   () => props.model,
   () => {
     if (props.resetOnChange) {
-      clearMessage()
+      // clearMessage()
     }
   },
   { immediate: true, deep: true }
@@ -46,85 +47,87 @@ async function validate(prop?: string): Promise<{ valid: boolean; errors: ErrorM
   const errors: ErrorMessage[] = []
   let valid: boolean = true
   const promises: Promise<void>[] = []
-  const formRules: FormRules = getMergeRules()
-  const rulesToValidate: FormRules = prop ? { [prop]: formRules[prop] } : formRules
-  for (const prop in rulesToValidate) {
-    const rules = rulesToValidate[prop]
-    const value = getPropByPath(props.model, prop)
-    if (rules && rules.length > 0) {
-      for (const rule of rules) {
-        if (rule.required && (!isDef(value) || value === '')) {
-          errors.push({
-            prop,
-            message: rule.message
-          })
-          valid = false
-          break
-        }
-        if (rule.pattern && !rule.pattern.test(props.model[prop])) {
-          errors.push({
-            prop,
-            message: rule.message
-          })
-          valid = false
-          break
-        }
-        const { validator, ...ruleWithoutValidator } = rule
-        if (validator) {
-          const result = validator(props.model[prop], ruleWithoutValidator)
-          if (isPromise(result)) {
-            promises.push(
-              result
-                .then((res: any) => {
-                  if (typeof res === 'string') {
-                    errors.push({
-                      prop,
-                      message: res
-                    })
-                    valid = false
-                  } else if (typeof res === 'boolean' && !res) {
-                    errors.push({
-                      prop,
-                      message: rule.message
-                    })
-                    valid = false
-                  }
-                })
-                .catch((error) => {
-                  errors.push({
-                    prop,
-                    message: error || rule.message
-                  })
-                  valid = false
-                })
-            )
-          } else {
-            if (!result) {
-              errors.push({
-                prop,
-                message: rule.message
-              })
-              valid = false
-            }
-          }
-        }
-      }
-    }
-  }
-
+  children.forEach((item) => {
+    promises.push(item.$.exposed?.validate())
+  })
+  // const formRules: FormRules = getMergeRules()
+  // const rulesToValidate: FormRules = prop ? { [prop]: formRules[prop] } : formRules
+  // for (const prop in rulesToValidate) {
+  //   const rules = rulesToValidate[prop]
+  //   const value = getPropByPath(props.model, prop)
+  //   if (rules && rules.length > 0) {
+  //     for (const rule of rules) {
+  //       if (rule.required && (!isDef(value) || value === '')) {
+  //         errors.push({
+  //           prop,
+  //           message: rule.message
+  //         })
+  //         valid = false
+  //         break
+  //       }
+  //       if (rule.pattern && !rule.pattern.test(props.model[prop])) {
+  //         errors.push({
+  //           prop,
+  //           message: rule.message
+  //         })
+  //         valid = false
+  //         break
+  //       }
+  //       const { validator, ...ruleWithoutValidator } = rule
+  //       if (validator) {
+  //         const result = validator(props.model[prop], ruleWithoutValidator)
+  //         if (isPromise(result)) {
+  //           promises.push(
+  //             result
+  //               .then((res: any) => {
+  //                 if (typeof res === 'string') {
+  //                   errors.push({
+  //                     prop,
+  //                     message: res
+  //                   })
+  //                   valid = false
+  //                 } else if (typeof res === 'boolean' && !res) {
+  //                   errors.push({
+  //                     prop,
+  //                     message: rule.message
+  //                   })
+  //                   valid = false
+  //                 }
+  //               })
+  //               .catch((error) => {
+  //                 errors.push({
+  //                   prop,
+  //                   message: error || rule.message
+  //                 })
+  //                 valid = false
+  //               })
+  //           )
+  //         } else {
+  //           if (!result) {
+  //             errors.push({
+  //               prop,
+  //               message: rule.message
+  //             })
+  //             valid = false
+  //           }
+  //         }
+  //       }
+  //     }
+  //   }
+  // }
   await Promise.all(promises)
 
   errors.forEach((error) => {
-    showMessage(error)
+    // showMessage(error)
   })
 
-  if (valid) {
-    if (prop) {
-      clearMessage(prop)
-    } else {
-      clearMessage()
-    }
-  }
+  // if (valid) {
+  //   if (prop) {
+  //     clearMessage(prop)
+  //   } else {
+  //     clearMessage()
+  //   }
+  // }
 
   return {
     valid,
@@ -147,27 +150,27 @@ function getMergeRules() {
   return mergedRules
 }
 
-function showMessage(errorMsg: ErrorMessage) {
-  if (errorMsg.message) {
-    errorMessages[errorMsg.prop] = errorMsg.message
-  }
-}
+// function showMessage(errorMsg: ErrorMessage) {
+//   if (errorMsg.message) {
+//     errorMessages[errorMsg.prop] = errorMsg.message
+//   }
+// }
 
-function clearMessage(prop?: string) {
-  if (prop) {
-    errorMessages[prop] = ''
-  } else {
-    Object.keys(errorMessages).forEach((key) => {
-      errorMessages[key] = ''
-    })
-  }
-}
+// function clearMessage(prop?: string) {
+//   if (prop) {
+//     errorMessages[prop] = ''
+//   } else {
+//     Object.keys(errorMessages).forEach((key) => {
+//       errorMessages[key] = ''
+//     })
+//   }
+// }
 
 /**
  * 重置表单项的验证提示
  */
 function reset() {
-  clearMessage()
+  // clearMessage()
 }
 
 defineExpose<FormExpose>({ validate, reset })

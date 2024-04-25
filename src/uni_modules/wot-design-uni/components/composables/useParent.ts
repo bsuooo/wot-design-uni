@@ -22,7 +22,6 @@ export function useParent<T>(key: InjectionKey<ParentProvide<T>>) {
   if (parent) {
     const instance = getCurrentInstance()!
     const { link, unlink, internalChildren } = parent
-
     link(instance)
     onUnmounted(() => unlink(instance))
 

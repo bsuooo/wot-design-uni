@@ -86,7 +86,7 @@ export default {
 
 <script lang="ts" setup>
 import { computed, onBeforeMount, ref, watch } from 'vue'
-import { objToStyle, requestAnimationFrame } from '../common/util'
+import { getPropByPath, isDef, isPromise, objToStyle, requestAnimationFrame } from '../common/util'
 import { useCell } from '../composables/useCell'
 import { FORM_KEY, type FormItemRule } from '../wd-form/types'
 import { useParent } from '../composables/useParent'
@@ -142,13 +142,15 @@ watch(
 
 const { parent: form } = useParent(FORM_KEY)
 
-const errorMessage = computed(() => {
-  if (form && props.prop && form.errorMessages && form.errorMessages[props.prop]) {
-    return form.errorMessages[props.prop]
-  } else {
-    return ''
-  }
-})
+// const errorMessage = computed(() => {
+//   if (form && props.prop && form.errorMessages && form.errorMessages[props.prop]) {
+//     return form.errorMessages[props.prop]
+//   } else {
+//     return ''
+//   }
+// })
+
+const errorMessage = ref<string>('')
 
 // 是否展示必填
 const isRequired = computed(() => {
@@ -262,6 +264,90 @@ function onClickPrefixIcon() {
 function handleClick(event: MouseEvent) {
   emit('click', event)
 }
+
+function toArray<T>(value?: T | T[] | null): T[] {
+  if (value === undefined || value === null) {
+    return []
+  }
+
+  return Array.isArray(value) ? value : [value]
+}
+
+function mergedRules() {
+  if (!form || !props.prop) {
+    return []
+  }
+  if (!form.props.rules) {
+    return props.rules
+  }
+  const mergedRules = [...props.rules]
+  const rules = form.props.rules
+  const formRules = Object.keys(rules).find((key) => {
+    if (toArray(key) === toArray(props.prop)) {
+      return true
+    }
+  })
+  if (formRules) {
+    mergedRules.concat(...rules[formRules])
+  }
+  return mergedRules
+}
+
+async function validate() {
+  if (!props.prop) {
+    return true
+  }
+  const rules = mergedRules()
+  const value = getPropByPath(form?.props.model, props.prop)
+  errorMessage.value = ''
+  let valid: boolean = true
+  const promises: Promise<void>[] = []
+  if (rules && rules.length > 0) {
+    for (const rule of rules) {
+      if (rule.required && (!isDef(value) || value === '')) {
+        valid = false
+        errorMessage.value = rule.message
+        break
+      }
+      if (rule.pattern && !rule.pattern.test(form?.props.model[props.prop])) {
+        valid = false
+        break
+      }
+      const { validator, ...ruleWithoutValidator } = rule
+      if (validator) {
+        const result = validator(form?.props.model[props.prop], ruleWithoutValidator)
+        if (isPromise(result)) {
+          promises.push(
+            result
+              .then((res: any) => {
+                if (typeof res === 'string') {
+                  valid = false
+                  errorMessage.value = res
+                } else if (typeof res === 'boolean' && !res) {
+                  valid = false
+                  errorMessage.value = rule.message
+                }
+              })
+              .catch((error) => {
+                valid = false
+                errorMessage.value = error || rule.message
+              })
+          )
+        } else {
+          if (!result) {
+            valid = false
+            errorMessage.value = rule.message
+          }
+        }
+      }
+    }
+  }
+  await Promise.all(promises)
+}
+
+defineExpose({
+  validate
+})
 </script>
 
 <style lang="scss" scoped>
